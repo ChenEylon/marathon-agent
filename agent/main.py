@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from agent import scheduler as sched
 from agent.db import init as db_init
 from agent.handlers.post_run import handle_new_activity
+from agent import training_plan as tp
 
 app = FastAPI()
 
@@ -28,11 +29,21 @@ WEBHOOK_VERIFY_TOKEN = os.getenv("STRAVA_WEBHOOK_VERIFY_TOKEN", "")
 
 @app.post("/incoming")
 async def incoming_message(request: Request):
-    data = await request.json()
+    import datetime
+    data   = await request.json()
     sender = data.get("from", "")
     body   = data.get("body", "").strip()
     print(f"📩 Message from {sender}: {body}")
-    # Phase 3 will add Claude-powered reply logic here
+
+    # Feeling feedback: single digit 1-5
+    if body in ("1", "2", "3", "4", "5"):
+        feeling = int(body)
+        tp.save_feedback(datetime.date.today(), feeling)
+        labels = {1: "Really tough — noted, I'll factor this in.", 2: "Hard day — good effort.", 3: "Solid run!", 4: "Feeling strong!", 5: "Easy — I'll push the next one a bit."}
+        from agent import whatsapp_client, config
+        cfg = config.load()
+        whatsapp_client.send_message(cfg["user"]["phone"], f"Got it — {labels[feeling]} 💪")
+
     return {"ok": True}
 
 

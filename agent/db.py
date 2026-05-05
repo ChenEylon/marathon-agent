@@ -46,4 +46,25 @@ def init():
                 PRIMARY KEY (event_id, days_before)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS training_plan (
+                week_number  INTEGER NOT NULL,
+                day_of_week  TEXT NOT NULL,
+                phase        INTEGER NOT NULL,
+                workout_type TEXT NOT NULL,
+                distance_km  REAL NOT NULL,
+                pace_target  TEXT,
+                description  TEXT,
+                PRIMARY KEY (week_number, day_of_week)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS workout_feedback (
+                date         TEXT PRIMARY KEY,
+                week_number  INTEGER,
+                day_of_week  TEXT,
+                feeling      INTEGER,  -- 1=very hard, 5=too easy
+                notes        TEXT
+            )
+        """)
         conn.commit()
