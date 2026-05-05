@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+
+# WhatsApp session (contains your auth — never commit this)
+whatsapp-bridge/.wwebjs_auth/
+whatsapp-bridge/.wwebjs_cache/
+whatsapp-bridge/node_modules/
+
+# Database
+*.db
+*.sqlite
+
+# OS
+.DS_Store

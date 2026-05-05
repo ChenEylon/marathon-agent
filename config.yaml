@@ -1,0 +1,28 @@
+user:
+  name: "Chen"
+  phone: ""                        # Your WhatsApp number with country code, e.g. "972501234567"
+  message_time: "07:30"
+  timezone: "Asia/Jerusalem"
+
+training:
+  marathon_date: ""                # Fill in once we decide, e.g. "2027-01-10"
+  checkpoint_race_date: ""         # Half marathon ~week 16, fill in later
+  current_weekly_km: 18
+  current_easy_pace_per_km: "5:40" # mm:ss format
+  run_days:
+    - monday
+    - wednesday
+    - saturday
+
+gym_days:
+  - sunday                         # Chest / Triceps / Shoulders / Abs
+  - monday                         # Back / Biceps
+  - tuesday                        # Legs
+  - thursday                       # Chest + Back
+
+reminders:
+  deadline_days_before: [7, 1]
+
+messages:
+  rest_day_quote: true
+  style: "brief"                   # "brief" or "detailed"
