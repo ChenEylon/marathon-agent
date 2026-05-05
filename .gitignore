@@ -11,6 +11,9 @@ whatsapp-bridge/.wwebjs_auth/
 whatsapp-bridge/.wwebjs_cache/
 whatsapp-bridge/node_modules/
 
+# Secrets
+.env
+
 # Database
 *.db
 *.sqlite
