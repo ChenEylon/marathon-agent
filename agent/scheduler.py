@@ -8,12 +8,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from agent import config
 from agent.handlers.morning import send_morning_message
+from agent.handlers.deadline import check_and_send_deadline_reminders
 
 
 def start():
-    cfg = config.load()
-    tz = pytz.timezone(cfg["user"]["timezone"])
-    message_time = cfg["user"]["message_time"]  # "07:30"
+    cfg          = config.load()
+    tz           = pytz.timezone(cfg["user"]["timezone"])
+    message_time = cfg["user"]["message_time"]
     hour, minute = message_time.split(":")
 
     scheduler = BlockingScheduler(timezone=tz)
@@ -25,5 +26,21 @@ def start():
         name="Daily morning workout message",
     )
 
-    print(f"⏰ Scheduler started — morning message fires at {message_time} ({cfg['user']['timezone']})")
+    # Deadline check fires 30 minutes after the morning message
+    deadline_hour   = int(hour)
+    deadline_minute = int(minute) + 30
+    if deadline_minute >= 60:
+        deadline_hour   += 1
+        deadline_minute -= 60
+
+    scheduler.add_job(
+        check_and_send_deadline_reminders,
+        CronTrigger(hour=deadline_hour, minute=deadline_minute, timezone=tz),
+        id="deadline_check",
+        name="Daily academic deadline reminders",
+    )
+
+    print(f"⏰ Scheduler started")
+    print(f"   Morning message:   {hour}:{minute} ({cfg['user']['timezone']})")
+    print(f"   Deadline check:    {deadline_hour}:{deadline_minute:02d} ({cfg['user']['timezone']})")
     scheduler.start()

@@ -39,4 +39,11 @@ def init():
                 body_battery   INTEGER
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sent_reminders (
+                event_id    TEXT NOT NULL,
+                days_before INTEGER NOT NULL,
+                PRIMARY KEY (event_id, days_before)
+            )
+        """)
         conn.commit()
