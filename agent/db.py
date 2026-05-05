@@ -31,4 +31,12 @@ def init():
                 processed   INTEGER DEFAULT 0
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS garmin_readings (
+                date           TEXT PRIMARY KEY,
+                hrv_status     TEXT,
+                hrv_last_night INTEGER,
+                body_battery   INTEGER
+            )
+        """)
         conn.commit()
