@@ -21,16 +21,19 @@ password = os.getenv("GARMIN_PASSWORD") or input("Garmin Connect password: ").st
 
 
 def prompt_mfa():
-    return input("Garmin MFA code (check your email/app): ").strip()
+    code = os.getenv("GARMIN_MFA_CODE", "").strip()
+    if code:
+        print(f"Using MFA code: {code}")
+        return code
+    return input("Garmin MFA code: ").strip()
 
 
 print("\nLogging in to Garmin Connect...")
 
 try:
     api = garminconnect.Garmin(email, password, prompt_mfa=prompt_mfa)
-    api.login()
-    api.garth.dump(TOKENSTORE)
-    print(f"✅ Authenticated as {api.display_name}")
+    api.login(tokenstore=TOKENSTORE)
+    print(f"✅ Authenticated successfully")
     print(f"   Tokens saved to {TOKENSTORE}")
 except Exception as e:
     print(f"❌ Login failed: {e}")

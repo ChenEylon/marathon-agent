@@ -2,22 +2,24 @@ import os
 import datetime
 import garminconnect
 from agent.db import get_connection
+from dotenv import load_dotenv
+
+load_dotenv()
 
 TOKENSTORE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "garth_tokens")
 
 
 def get_client() -> garminconnect.Garmin:
-    api = garminconnect.Garmin()
-    try:
-        api.garth.load(TOKENSTORE)
-        api.display_name = api.garth.profile.get("display_name", "athlete")
-    except Exception:
+    if not os.path.exists(TOKENSTORE):
         raise RuntimeError("Garmin not authenticated. Run: python scripts/garmin_auth.py")
+    email    = os.getenv("GARMIN_EMAIL", "")
+    password = os.getenv("GARMIN_PASSWORD", "")
+    api = garminconnect.Garmin(email, password)
+    api.login(tokenstore=TOKENSTORE)
     return api
 
 
 def get_hrv(date: datetime.date | None = None) -> dict | None:
-    """Returns Garmin HRV summary dict or None if unavailable."""
     if date is None:
         date = datetime.date.today()
     try:
@@ -30,7 +32,6 @@ def get_hrv(date: datetime.date | None = None) -> dict | None:
 
 
 def get_body_battery(date: datetime.date | None = None) -> int | None:
-    """Returns the most recent Body Battery reading for the date, or None."""
     if date is None:
         date = datetime.date.today()
     try:
@@ -38,10 +39,9 @@ def get_body_battery(date: datetime.date | None = None) -> int | None:
         data = api.get_body_battery(date.isoformat(), date.isoformat())
         if not data:
             return None
-        # data is a list of dicts; bodyBatteryValuesArray entries are [timestamp, value, status, type]
         readings = data[0].get("bodyBatteryValuesArray", [])
         if readings:
-            return readings[-1][1]  # last reading's value
+            return readings[-1][1]
         return None
     except Exception as e:
         print(f"⚠️  Garmin Body Battery fetch failed: {e}")
@@ -64,10 +64,7 @@ def save_daily_reading(date: datetime.date, hrv: dict | None, body_battery: int 
 
 
 def get_recovery_advice(hrv: dict | None, body_battery: int | None) -> tuple[str, str | None]:
-    """
-    Returns (intensity_level, reason_or_None).
-    intensity_level: "full" | "easy" | "rest"
-    """
+    """Returns (intensity_level, reason_or_None). intensity_level: 'full' | 'easy' | 'rest'"""
     status = (hrv.get("status") or "").upper() if hrv else None
     bb     = body_battery or 0
 
