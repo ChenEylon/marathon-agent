@@ -7,7 +7,16 @@ app.use(express.json());
 
 const client = new Client({
     authStrategy: new LocalAuth(),
-    puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
+    puppeteer: {
+        executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process',
+        ]
+    }
 });
 
 let isReady = false;
