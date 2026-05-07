@@ -1,5 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const express = require('express');
 
 const app = express();
@@ -22,10 +23,13 @@ const client = new Client({
 });
 
 let isReady = false;
+let currentQR = null;
 
 client.on('qr', (qr) => {
+    currentQR = qr;
     console.log('\n📱 Scan this QR code with WhatsApp on your phone:\n');
     qrcode.generate(qr, { small: true });
+    console.log(`\nOr open in browser: http://YOUR_SERVER_IP:3000/qr\n`);
 });
 
 client.on('ready', () => {
@@ -67,6 +71,13 @@ app.post('/send', async (req, res) => {
 });
 
 app.get('/health', (_, res) => res.json({ ready: isReady }));
+
+app.get('/qr', async (req, res) => {
+    if (isReady) return res.send('<h2>✅ WhatsApp already connected!</h2>');
+    if (!currentQR) return res.send('<h2>⏳ QR code not ready yet, refresh in a few seconds...</h2>');
+    const img = await QRCode.toDataURL(currentQR);
+    res.send(`<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;font-family:sans-serif;"><h2>Scan with WhatsApp</h2><img src="${img}" style="width:300px;height:300px;"><p>Refresh if expired</p></body></html>`);
+});
 
 const PORT = process.env.BRIDGE_PORT || 3000;
 app.listen(PORT, () => console.log(`WhatsApp bridge listening on port ${PORT}`));
