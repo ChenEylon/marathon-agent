@@ -13,8 +13,8 @@ from agent.db import init as db_init, get_connection
 def easy(km):        return ("easy",      km, "6:10-6:30", f"Easy run {km}km — fully conversational pace")
 def long_(km):       return ("long",      km, "6:10-6:30", f"Long run {km}km — easy pace, walk breaks OK")
 def tempo(km, t):    return ("tempo",     km, "5:15-5:30", f"{km}km: 2km warm-up + {t}km tempo (5:15-5:30/km) + cool-down")
-def inter(km, reps): return ("intervals", km, "5:45-6:00", f"{km}km: 2km warm-up + {reps}×2km at marathon pace + cool-down")
-def race():          return ("race",    42.2, "5:50-6:05", "RACE DAY 🏆 — Marathon 42.2km. Start conservative!")
+def inter(km, reps): return ("intervals", km, "5:30-5:45", f"{km}km: 2km warm-up + {reps}×2km at marathon pace + cool-down")
+def race():          return ("race",    42.2, "5:30-5:45", "RACE DAY 🏆 — Marathon 42.2km. Start conservative!")
 
 # (week, phase, monday, wednesday, saturday)
 PLAN = [

@@ -114,7 +114,7 @@ Rules:
 - If easy runs were consistently faster than target AND feeling was 4-5, tighten the easy range
 - If runs felt very hard (1-2) or athlete ran slower, loosen the range
 - Keep changes gradual (max 10-15 sec/km shift per week)
-- Marathon is {cfg['training']['marathon_date']}, currently week {current_week} of 34
+- Marathon is {cfg['training']['marathon_date']}, currently week {current_week} of 42
 
 Respond in JSON only:
 {{

@@ -11,8 +11,8 @@ training:
   current_weekly_km: 18
   current_easy_pace_per_km: "5:40"
   easy_pace_range: "6:10-6:30"
-  tempo_pace_range: "5:15-5:30"
-  marathon_pace_range: "5:50-6:05"
+  tempo_pace_range: "5:00-5:15"
+  marathon_pace_range: "5:30-5:45"
   run_days:
     - monday
     - wednesday
