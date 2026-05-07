@@ -168,6 +168,18 @@ Respond in JSON only:
     whatsapp_client.send_message(phone, msg)
     print(f"✅ Weekly review sent for week {current_week - 1}")
 
+    # Re-export Excel after recalibration
+    try:
+        import subprocess
+        xlsx_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "training_plan.xlsx")
+        subprocess.run(
+            ["python3", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "scripts", "export_plan.py"), xlsx_path],
+            check=True, capture_output=True
+        )
+        print(f"✅ Excel updated: {xlsx_path}")
+    except Exception as e:
+        print(f"⚠️  Excel export failed: {e}")
+
 
 def _seconds_to_pace(moving_time: int, distance_m: float) -> str:
     if distance_m < 100:
