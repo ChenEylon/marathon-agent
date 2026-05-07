@@ -31,7 +31,7 @@ def _weeks_to_marathon(today: datetime.date) -> str:
     weeks = (marathon_date - today).days // 7
     if weeks <= 0:
         return "Race week! 🏁"
-    return f"{weeks} weeks to marathon"
+    return f"{weeks} weeks to marathon 🏆"
 
 
 def build_morning_message(today: datetime.date) -> str:
