@@ -83,6 +83,19 @@ def health():
     return {"status": "ok"}
 
 
+# ── QR proxy (for WhatsApp link setup) ────────────────────────────────────────
+
+@app.get("/qr")
+def qr_proxy():
+    import requests as req
+    from fastapi.responses import HTMLResponse
+    try:
+        r = req.get("http://localhost:3000/qr", timeout=10)
+        return HTMLResponse(content=r.text)
+    except Exception as e:
+        return HTMLResponse(content=f"<h2>Bridge not ready: {e}</h2>")
+
+
 # ── Startup ────────────────────────────────────────────────────────────────────
 
 def run_server():
