@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from agent import config
 from agent.handlers.morning import send_morning_message
 from agent.handlers.deadline import check_and_send_deadline_reminders
+from agent.handlers.weekly_review import run_weekly_review
 
 
 def start():
@@ -40,7 +41,16 @@ def start():
         name="Daily academic deadline reminders",
     )
 
+    # Weekly review every Monday at 07:00 (before morning message)
+    scheduler.add_job(
+        run_weekly_review,
+        CronTrigger(day_of_week="mon", hour=7, minute=0, timezone=tz),
+        id="weekly_review",
+        name="Weekly pace recalibration",
+    )
+
     print(f"⏰ Scheduler started")
     print(f"   Morning message:   {hour}:{minute} ({cfg['user']['timezone']})")
     print(f"   Deadline check:    {deadline_hour}:{deadline_minute:02d} ({cfg['user']['timezone']})")
+    print(f"   Weekly review:     Monday 07:00 ({cfg['user']['timezone']})")
     scheduler.start()
