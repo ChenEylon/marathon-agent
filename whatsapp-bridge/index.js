@@ -49,9 +49,10 @@ async function connectToWhatsApp() {
         }
     });
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        if (type !== 'notify') return;
         for (const msg of messages) {
-            if (msg.key.fromMe || !msg.message) continue;
+            if (!msg.message) continue;
             const body = msg.message?.conversation
                 || msg.message?.extendedTextMessage?.text
                 || '';
