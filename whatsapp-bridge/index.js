@@ -84,6 +84,31 @@ app.post('/send', async (req, res) => {
     }
 });
 
+// POST /send-document  { to: "972501234567", path: "/abs/path/file.xlsx", filename: "name.xlsx" }
+app.post('/send-document', async (req, res) => {
+    if (!isReady || !sock) return res.status(503).json({ error: 'WhatsApp not connected' });
+    const { to, path: filePath, filename } = req.body;
+    if (!to || !filePath) return res.status(400).json({ error: 'Missing to or path' });
+    try {
+        const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+        const fs = require('fs');
+        const buffer = fs.readFileSync(filePath);
+        const ext = filePath.split('.').pop().toLowerCase();
+        const mimeMap = {
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            pdf: 'application/pdf',
+        };
+        await sock.sendMessage(jid, {
+            document: buffer,
+            fileName: filename || path.basename(filePath),
+            mimetype: mimeMap[ext] || 'application/octet-stream',
+        });
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/health', (_, res) => res.json({ ready: isReady }));
 
 app.get('/qr', async (req, res) => {
