@@ -1,5 +1,5 @@
 """
-Export the full 34-week training plan to Excel.
+Export the full 42-week marathon training plan to Excel.
 Run locally: python scripts/export_plan.py
 Run on VM:   python scripts/export_plan.py  (saves to data/training_plan.xlsx)
 """
@@ -27,10 +27,10 @@ COLOURS = {
 }
 
 PHASE_LABELS = {
-    range(1, 11):  "Phase 1 — Base",
-    range(11, 23): "Phase 2 — Build",
-    range(23, 31): "Phase 3 — Peak",
-    range(31, 35): "Phase 4 — Taper",
+    range(1, 15):  "Phase 1 — Base",
+    range(15, 31): "Phase 2 — Build",
+    range(31, 39): "Phase 3 — Peak",
+    range(39, 43): "Phase 4 — Taper",
 }
 
 DAY_ORDER = {"monday": 1, "wednesday": 2, "saturday": 3}
