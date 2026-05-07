@@ -1,15 +1,15 @@
 {
   "name": "whatsapp-bridge",
-  "version": "1.0.0",
-  "description": "WhatsApp bridge for marathon agent",
+  "version": "2.0.0",
+  "description": "WhatsApp bridge for marathon agent (Baileys)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
     "express": "^4.18.2",
-    "whatsapp-web.js": "^1.23.0",
-    "qrcode-terminal": "^0.12.0",
+    "pino": "^9.0.0",
     "qrcode": "^1.5.3"
   }
 }
