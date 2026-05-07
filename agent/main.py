@@ -35,14 +35,34 @@ async def incoming_message(request: Request):
     body   = data.get("body", "").strip()
     print(f"📩 Message from {sender}: {body}")
 
+    from agent import whatsapp_client, config
+    cfg = config.load()
+    phone = cfg["user"]["phone"]
+
     # Feeling feedback: single digit 1-5
     if body in ("1", "2", "3", "4", "5"):
         feeling = int(body)
         tp.save_feedback(datetime.date.today(), feeling)
         labels = {1: "Really tough — noted, I'll factor this in.", 2: "Hard day — good effort.", 3: "Solid run!", 4: "Feeling strong!", 5: "Easy — I'll push the next one a bit."}
-        from agent import whatsapp_client, config
-        cfg = config.load()
-        whatsapp_client.send_message(cfg["user"]["phone"], f"Got it — {labels[feeling]} 💪")
+        whatsapp_client.send_message(phone, f"Got it — {labels[feeling]} 💪")
+
+    # Training plan view
+    elif body.lower() in ("plan", "תכנית", "סדר יום", "schedule"):
+        today = datetime.date.today()
+        current_week = tp.get_current_week(today)
+        lines = [f"📋 *Training Plan — Weeks {current_week}–{min(current_week+3, 34)}*\n"]
+        type_emoji = {"easy": "🏃", "long": "🏃‍♂️", "tempo": "⚡", "intervals": "🔥", "race": "🏆"}
+        for w in range(current_week, min(current_week + 4, 35)):
+            workouts = tp.get_week_summary(w)
+            if not workouts:
+                continue
+            week_label = "← this week" if w == current_week else ""
+            lines.append(f"*Week {w}* {week_label}")
+            for wo in workouts:
+                emoji = type_emoji.get(wo["workout_type"], "🏃")
+                lines.append(f"  {emoji} {wo['day_of_week'].capitalize()}: {wo['description']} — {wo['distance_km']}km @ {wo['pace_target']}/km")
+            lines.append("")
+        whatsapp_client.send_message(phone, "\n".join(lines))
 
     return {"ok": True}
 
