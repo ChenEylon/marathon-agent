@@ -53,7 +53,7 @@ def export(output_path: str):
 
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT * FROM training_plan ORDER BY week_number, id"
+            "SELECT * FROM training_plan ORDER BY week_number"
         ).fetchall()
 
     workouts = [dict(r) for r in rows]
