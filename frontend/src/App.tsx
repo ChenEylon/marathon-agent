@@ -289,11 +289,15 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('messages')
 
   useEffect(() => {
-    Notification.requestPermission().then(() => registerPush()).catch(() => {})
+    try {
+      if (typeof Notification !== 'undefined') {
+        Notification.requestPermission().then(() => registerPush()).catch(() => {})
+      }
+    } catch { /* push not supported on this browser */ }
   }, [])
 
   return (
-    <div className="flex flex-col h-svh max-w-[480px] mx-auto sm:my-8 sm:h-[calc(100svh-64px)] sm:rounded-2xl sm:overflow-hidden sm:shadow-xl">
+    <div className="flex flex-col h-screen max-w-[480px] mx-auto sm:my-8 sm:h-[calc(100vh-64px)] sm:rounded-2xl sm:overflow-hidden sm:shadow-xl">
 
       {/* Header */}
       <header className="app-header flex items-center justify-between px-5 py-4 flex-shrink-0"
