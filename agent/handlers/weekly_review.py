@@ -2,7 +2,7 @@ import datetime
 import json
 import anthropic
 import os
-from agent import config, whatsapp_client, strava, training_plan
+from agent import config, push_client as whatsapp_client, strava, training_plan
 from agent.db import get_connection
 
 

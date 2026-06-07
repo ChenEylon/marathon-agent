@@ -1,6 +1,6 @@
 import datetime
 import pytz
-from agent import config, whatsapp_client, calendar_client
+from agent import config, push_client as whatsapp_client, calendar_client
 from agent.db import get_connection
 
 

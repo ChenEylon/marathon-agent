@@ -1,6 +1,6 @@
 import datetime
 import random
-from agent import config, whatsapp_client, garmin, training_plan, adaptation
+from agent import config, push_client as whatsapp_client, garmin, training_plan, adaptation
 
 MOTIVATIONAL_QUOTES = [
     "The miracle isn't that I finished. It's that I had the courage to start. – John Bingham",

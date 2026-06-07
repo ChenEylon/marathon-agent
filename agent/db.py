@@ -67,4 +67,27 @@ def init():
                 notes        TEXT
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                subscription_json TEXT NOT NULL UNIQUE,
+                created_at        TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS message_log (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                role       TEXT NOT NULL,
+                content    TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS chat_history (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                role       TEXT NOT NULL,
+                content    TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
         conn.commit()

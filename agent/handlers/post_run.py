@@ -1,4 +1,4 @@
-from agent import whatsapp_client, config, strava
+from agent import push_client as whatsapp_client, config, strava
 
 RUN_TYPES = {"Run", "VirtualRun", "TrailRun"}
 
