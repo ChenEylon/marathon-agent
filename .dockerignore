@@ -1,0 +1,13 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+data/
+*.db
+*.sqlite
+.DS_Store
+whatsapp-bridge/
+frontend/node_modules/
+frontend/dist/
