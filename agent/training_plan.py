@@ -9,7 +9,7 @@ def get_current_week(today: datetime.date | None = None) -> int:
     cfg        = config.load()
     start_date = datetime.date.fromisoformat(cfg["training"]["plan_start_date"])
     delta      = (today - start_date).days
-    return max(1, min(34, delta // 7 + 1))
+    return max(1, min(42, delta // 7 + 1))
 
 
 def get_todays_workout(today: datetime.date | None = None) -> dict | None:

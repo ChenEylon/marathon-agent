@@ -6,7 +6,7 @@ user:
 
 training:
   plan_start_date: "2026-05-04"    # Monday of week 1
-  marathon_date: "2027-02-26"      # Week 42
+  marathon_date: "2027-02-27"      # Week 42
   checkpoint_race_date: "2026-09-19" # Half marathon, week 20
   current_weekly_km: 18
   current_easy_pace_per_km: "5:40"
