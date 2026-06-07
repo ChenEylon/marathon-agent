@@ -154,6 +154,8 @@ _PHASE_NAMES = {0:"Return to Running", 1:"Base Building", 2:"Development", 3:"Pe
 
 @app.get("/api/plan")
 def get_plan():
+    from agent import config as cfg_mod
+    cfg          = cfg_mod.load()
     today        = datetime.date.today()
     current_week = tp.get_current_week(today)
     weeks        = []
@@ -171,7 +173,85 @@ def get_plan():
             "phase_name":   _PHASE_NAMES.get(phase, f"Phase {phase}"),
             "workouts":     sorted_workouts,
         })
-    return {"current_week": current_week, "total_weeks": 42, "weeks": weeks}
+    return {
+        "current_week": current_week,
+        "total_weeks":  42,
+        "plan_start":   cfg["training"]["plan_start_date"],
+        "weeks":        weeks,
+    }
+
+
+@app.get("/api/activities")
+def get_activities(limit: int = 5):
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT strava_id, date, distance_km, pace_sec_km, avg_hr "
+            "FROM activities ORDER BY date DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/weekly-stats")
+def get_weekly_stats():
+    from agent import config as cfg_mod
+    today        = datetime.date.today()
+    current_week = tp.get_current_week(today)
+    start_week   = max(1, current_week - 7)
+    plan_start   = datetime.date.fromisoformat(cfg_mod.load()["training"]["plan_start_date"])
+
+    with get_connection() as conn:
+        planned_rows = conn.execute(
+            "SELECT week_number, SUM(distance_km) as total FROM training_plan "
+            "WHERE week_number BETWEEN ? AND ? GROUP BY week_number",
+            (start_week, current_week),
+        ).fetchall()
+
+    planned = {r["week_number"]: r["total"] for r in planned_rows}
+
+    since = (plan_start + datetime.timedelta(weeks=start_week - 1)).isoformat()
+    with get_connection() as conn:
+        act_rows = conn.execute(
+            "SELECT date, distance_km FROM activities WHERE date >= ? ORDER BY date",
+            (since,),
+        ).fetchall()
+
+    actual: dict[int, float] = {w: 0.0 for w in range(start_week, current_week + 1)}
+    for row in act_rows:
+        d  = datetime.date.fromisoformat(row["date"])
+        wn = max(1, min(42, (d - plan_start).days // 7 + 1))
+        if wn in actual:
+            actual[wn] += row["distance_km"]
+
+    return {
+        "weeks": [
+            {"week": w, "planned_km": round(planned.get(w, 0), 1), "actual_km": round(actual.get(w, 0), 1)}
+            for w in range(start_week, current_week + 1)
+        ]
+    }
+
+
+@app.get("/api/feedback")
+def get_feedback_week(week: int = Query(None)):
+    if week is None:
+        week = tp.get_current_week()
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT date, day_of_week, feeling FROM workout_feedback WHERE week_number = ?",
+            (week,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/feedback")
+async def post_feedback(request: Request):
+    data    = await request.json()
+    date_s  = data.get("date")
+    feeling = data.get("feeling")
+    if not date_s or not feeling:
+        return JSONResponse(status_code=400, content={"error": "Missing date or feeling"})
+    tp.save_feedback(datetime.date.fromisoformat(date_s), int(feeling))
+    return {"ok": True}
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────
