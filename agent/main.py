@@ -147,6 +147,33 @@ async def strava_event(request: Request):
     return {"ok": True}
 
 
+# ── Training plan ──────────────────────────────────────────────────────────────
+
+_DAY_ORDER = {"monday":0,"tuesday":1,"wednesday":2,"thursday":3,"friday":4,"saturday":5,"sunday":6}
+_PHASE_NAMES = {1:"Base Building", 2:"Development", 3:"Peak Training", 4:"Taper"}
+
+@app.get("/api/plan")
+def get_plan():
+    today        = datetime.date.today()
+    current_week = tp.get_current_week(today)
+    weeks        = []
+    for w in range(current_week, min(current_week + 6, 35)):
+        workouts = tp.get_week_summary(w)
+        if not workouts:
+            continue
+        sorted_workouts = sorted([dict(wo) for wo in workouts],
+                                 key=lambda x: _DAY_ORDER.get(x["day_of_week"], 9))
+        phase = sorted_workouts[0]["phase"]
+        weeks.append({
+            "week_number":  w,
+            "is_current":   w == current_week,
+            "phase":        phase,
+            "phase_name":   _PHASE_NAMES.get(phase, f"Phase {phase}"),
+            "workouts":     sorted_workouts,
+        })
+    return {"current_week": current_week, "total_weeks": 34, "weeks": weeks}
+
+
 # ── Health ─────────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
