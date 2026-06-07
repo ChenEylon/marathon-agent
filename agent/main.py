@@ -233,14 +233,39 @@ def get_weekly_stats():
 
 @app.get("/api/feedback")
 def get_feedback_week(week: int = Query(None)):
-    if week is None:
-        week = tp.get_current_week()
+    with get_connection() as conn:
+        if week is None:
+            rows = conn.execute(
+                "SELECT date, day_of_week, feeling FROM workout_feedback ORDER BY date",
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT date, day_of_week, feeling FROM workout_feedback WHERE week_number = ?",
+                (week,),
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/calendar")
+def get_calendar():
+    from agent import config as cfg_mod
+    cfg        = cfg_mod.load()
+    plan_start = datetime.date.fromisoformat(cfg["training"]["plan_start_date"])
+    day_off    = {"monday":0,"tuesday":1,"wednesday":2,"thursday":3,"friday":4,"saturday":5,"sunday":6}
+
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT date, day_of_week, feeling FROM workout_feedback WHERE week_number = ?",
-            (week,),
+            "SELECT week_number, day_of_week, workout_type, distance_km, pace_target, description, phase "
+            "FROM training_plan ORDER BY week_number, day_of_week"
         ).fetchall()
-    return [dict(r) for r in rows]
+
+    events = []
+    for r in rows:
+        d      = dict(r)
+        offset = (d["week_number"] - 1) * 7 + day_off.get(d["day_of_week"], 0)
+        date   = plan_start + datetime.timedelta(days=offset)
+        events.append({**d, "date": date.isoformat()})
+    return events
 
 
 @app.post("/api/feedback")

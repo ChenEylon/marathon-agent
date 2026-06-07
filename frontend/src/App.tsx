@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Zap, Layers, MessageCircle, ArrowUp, Bot, Inbox,
+  Zap, Layers, ArrowUp, Bot, Inbox,
   CalendarDays, Wind, Navigation, BarChart2, Trophy, Dumbbell,
-  CheckCircle, Circle,
+  CheckCircle, Circle, ChevronLeft, ChevronRight, MessageCircle,
 } from 'lucide-react'
 import './App.css'
 
@@ -14,6 +14,7 @@ interface PlanData   { current_week: number; total_weeks: number; plan_start: st
 interface Activity   { strava_id: number; date: string; distance_km: number; pace_sec_km: number; avg_hr: number | null }
 interface WeekStat   { week: number; planned_km: number; actual_km: number }
 interface FeedbackMap{ [date: string]: number }
+interface CalEvent   { date: string; week_number: number; workout_type: string; distance_km: number; pace_target: string; description: string; phase: number }
 
 // ── Push registration ─────────────────────────────────────────────────────────
 function urlBase64ToUint8Array(b64: string) {
@@ -56,16 +57,19 @@ function workoutDate(planStart: string, weekNum: number, dayOfWeek: string): str
   d.setDate(d.getDate() + (weekNum - 1) * 7 + (offsets[dayOfWeek] ?? 0))
   return d.toISOString().slice(0, 10)
 }
+function isoDate(y: number, m: number, d: number): string {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
 
-// ── Icon / label maps ─────────────────────────────────────────────────────────
+// ── Workout meta ──────────────────────────────────────────────────────────────
 type IconFC = React.FC<{ size: number; strokeWidth: number }>
-const WORKOUT_META: Record<string, { label: string; Icon: IconFC }> = {
-  easy:      { label: 'Easy Run',  Icon: p => <Wind      {...p} /> },
-  long:      { label: 'Long Run',  Icon: p => <Navigation {...p} /> },
-  tempo:     { label: 'Tempo',     Icon: p => <Zap       {...p} /> },
-  intervals: { label: 'Intervals', Icon: p => <BarChart2  {...p} /> },
-  race:      { label: 'Race',      Icon: p => <Trophy     {...p} /> },
-  strength:  { label: 'Strength',  Icon: p => <Dumbbell   {...p} /> },
+const WORKOUT_META: Record<string, { label: string; Icon: IconFC; color: string }> = {
+  easy:      { label: 'Easy Run',  Icon: p => <Wind      {...p} />, color: '#EA580C' },
+  long:      { label: 'Long Run',  Icon: p => <Navigation {...p} />, color: '#2563EB' },
+  tempo:     { label: 'Tempo',     Icon: p => <Zap       {...p} />, color: '#E11D48' },
+  intervals: { label: 'Intervals', Icon: p => <BarChart2  {...p} />, color: '#7C3AED' },
+  race:      { label: 'Race Day',  Icon: p => <Trophy     {...p} />, color: '#CA8A04' },
+  strength:  { label: 'Strength',  Icon: p => <Dumbbell   {...p} />, color: '#16A34A' },
 }
 const DAY_SHORT: Record<string, string> = {
   monday:'Mon',tuesday:'Tue',wednesday:'Wed',thursday:'Thu',friday:'Fri',saturday:'Sat',sunday:'Sun',
@@ -131,8 +135,6 @@ function MessageFeed() {
         })}
         <div ref={bottomRef} />
       </div>
-
-      {/* Reply bar */}
       <div className="flex items-center gap-2 px-4 py-3 border-t flex-shrink-0"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <input
@@ -148,104 +150,7 @@ function MessageFeed() {
         <button
           className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white transition-transform active:scale-90 disabled:opacity-30"
           style={{ background: 'var(--accent)' }}
-          onClick={sendReply}
-          disabled={!input.trim()}
-          aria-label="Send"
-        >
-          <ArrowUp size={18} strokeWidth={2.5} />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ── Chat ──────────────────────────────────────────────────────────────────────
-function ChatView() {
-  const [history, setHistory] = useState<Msg[]>([])
-  const [input, setInput]     = useState('')
-  const [loading, setLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef  = useRef<HTMLInputElement>(null)
-
-  useEffect(() => { fetch('/api/chat/history').then(r => r.json()).then(setHistory).catch(() => {}) }, [])
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [history, loading])
-
-  const send = async () => {
-    const msg = input.trim(); if (!msg || loading) return
-    setInput(''); inputRef.current?.focus()
-    setHistory(h => [...h, { id: Date.now(), role: 'user', content: msg, created_at: new Date().toISOString() }])
-    setLoading(true)
-    try {
-      const { reply } = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) }).then(r => r.json())
-      setHistory(h => [...h, { id: Date.now() + 1, role: 'assistant', content: reply, created_at: new Date().toISOString() }])
-    } catch {
-      setHistory(h => [...h, { id: Date.now() + 1, role: 'assistant', content: "Couldn't reach the coach right now.", created_at: new Date().toISOString() }])
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-1" style={{ background: 'var(--bg)' }}>
-        {history.length === 0 && !loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <MessageCircle size={40} strokeWidth={1.25} style={{ color: 'var(--border)' }} />
-            <p className="text-sm max-w-[200px] leading-relaxed" style={{ color: 'var(--muted)' }}>Ask your coach anything about training, recovery, or your plan.</p>
-          </div>
-        ) : history.map(m => {
-          const isUser = m.role === 'user'
-          return (
-            <div key={m.id} className={`bubble-row flex items-end gap-2 ${isUser ? 'flex-row-reverse self-end max-w-[82%]' : 'self-start max-w-[88%]'}`}>
-              {!isUser && (
-                <div className="w-[26px] h-[26px] rounded-full flex items-center justify-center flex-shrink-0 border"
-                  style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-                  <Bot size={13} strokeWidth={2} />
-                </div>
-              )}
-              <div className={`px-[14px] py-[10px] rounded-[18px] text-[14.5px] leading-[1.55]
-                ${isUser ? 'rounded-br-[5px] text-white' : 'rounded-bl-[5px] border shadow-sm'}`}
-                style={isUser ? { background: 'var(--user-bg)' } : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-                <p className="m-0 whitespace-pre-wrap break-words">{m.content}</p>
-              </div>
-            </div>
-          )
-        })}
-        {loading && (
-          <div className="bubble-row flex items-end gap-2 self-start">
-            <div className="w-[26px] h-[26px] rounded-full flex items-center justify-center border"
-              style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
-              <Bot size={13} strokeWidth={2} />
-            </div>
-            <div className="border rounded-[18px] rounded-bl-[5px] shadow-sm typing-bubble"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <span /><span /><span />
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="flex items-center gap-2 px-4 py-3 border-t flex-shrink-0"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <input
-          ref={inputRef}
-          className="flex-1 px-4 py-[10px] rounded-full text-[14.5px] border outline-none transition-colors"
-          style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', fontFamily: 'inherit' }}
-          placeholder="Ask your coach..."
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && send()}
-          disabled={loading}
-          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-          onBlur={e  => (e.target.style.borderColor = 'var(--border)')}
-        />
-        <button
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white transition-transform active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{ background: 'var(--accent)' }}
-          onClick={send}
-          disabled={loading || !input.trim()}
-          aria-label="Send"
-        >
+          onClick={sendReply} disabled={!input.trim()} aria-label="Send">
           <ArrowUp size={18} strokeWidth={2.5} />
         </button>
       </div>
@@ -328,37 +233,25 @@ function PlanView() {
   const [activities, setActs]   = useState<Activity[]>([])
   const [weekStats, setStats]   = useState<WeekStat[]>([])
   const [feedback, setFeedback] = useState<FeedbackMap>({})
-  const [rating, setRating]     = useState<string | null>(null) // workout date being rated
+  const [rating, setRating]     = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/plan').then(r => r.json()).then(setPlan).catch(() => {})
     fetch('/api/activities').then(r => r.json()).then(setActs).catch(() => {})
     fetch('/api/weekly-stats').then(r => r.json()).then((d: { weeks: WeekStat[] }) => setStats(d.weeks)).catch(() => {})
+    fetch('/api/feedback').then(r => r.json())
+      .then((items: { date: string; feeling: number }[]) => {
+        const m: FeedbackMap = {}; items.forEach(i => { m[i.date] = i.feeling }); setFeedback(m)
+      }).catch(() => {})
   }, [])
 
-  useEffect(() => {
-    if (!plan) return
-    fetch(`/api/feedback?week=${plan.current_week}`)
-      .then(r => r.json())
-      .then((items: { date: string; feeling: number }[]) => {
-        const m: FeedbackMap = {}
-        items.forEach(i => { m[i.date] = i.feeling })
-        setFeedback(m)
-      }).catch(() => {})
-  }, [plan])
-
   const saveFeedback = async (date: string, feeling: number) => {
-    setFeedback(f => ({ ...f, [date]: feeling }))
-    setRating(null)
-    await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, feeling }),
-    }).catch(() => {})
+    setFeedback(f => ({ ...f, [date]: feeling })); setRating(null)
+    await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, feeling }) }).catch(() => {})
   }
 
   if (!plan) return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-center" style={{ background: 'var(--bg)' }}>
+    <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: 'var(--bg)' }}>
       <CalendarDays size={40} strokeWidth={1.25} style={{ color: 'var(--border)' }} />
       <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading your plan...</p>
     </div>
@@ -369,12 +262,9 @@ function PlanView() {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4" style={{ background: 'var(--bg)' }}>
-
-      {/* Race countdown */}
       <div className="rounded-xl border flex-shrink-0 flex items-center gap-4 px-4 py-3"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(240,90,40,0.10)' }}>
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(240,90,40,0.10)' }}>
           <Trophy size={20} strokeWidth={1.75} style={{ color: 'var(--accent)' }} />
         </div>
         <div>
@@ -383,7 +273,6 @@ function PlanView() {
         </div>
       </div>
 
-      {/* Progress bar */}
       <div className="rounded-xl p-4 border flex-shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="flex justify-between items-baseline mb-2">
           <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: 'var(--muted)' }}>Marathon Progress</span>
@@ -395,61 +284,48 @@ function PlanView() {
         <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>{pct}% complete · {plan.total_weeks - plan.current_week} weeks to race day</p>
       </div>
 
-      {/* Weekly mileage chart */}
       <WeeklyChart stats={weekStats} />
-
-      {/* Recent runs */}
       <RecentRuns activities={activities} />
 
-      {/* Week cards */}
       {plan.weeks.map(week => (
         <div key={week.week_number}
           className={`rounded-xl border overflow-hidden flex-shrink-0 ${week.is_current ? 'ring-2' : ''}`}
           style={{ background: 'var(--surface)', borderColor: week.is_current ? 'var(--accent)' : 'var(--border)' }}>
-
           <div className="flex items-center justify-between px-4 py-3 border-b"
             style={{ borderColor: 'var(--border)', background: week.is_current ? 'rgba(240,90,40,0.06)' : 'transparent' }}>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>Week {week.week_number}</span>
               {week.is_current && (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ background: 'var(--accent)' }}>
-                  Now
-                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white" style={{ background: 'var(--accent)' }}>Now</span>
               )}
             </div>
             <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>{week.phase_name}</span>
           </div>
-
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
             {week.workouts.map(wo => {
-              const { label, Icon } = WORKOUT_META[wo.workout_type] ?? { label: wo.workout_type, Icon: (p: { size: number; strokeWidth: number }) => <Wind {...p} /> }
-              const wDate          = plan.plan_start ? workoutDate(plan.plan_start, week.week_number, wo.day_of_week) : null
-              const existingRating = wDate ? feedback[wDate] : null
-              const isRating       = rating === wDate
-              const isPastOrToday  = wDate ? wDate <= new Date().toISOString().slice(0, 10) : false
-
+              const meta          = WORKOUT_META[wo.workout_type] ?? { label: wo.workout_type, Icon: (p: {size:number;strokeWidth:number}) => <Wind {...p} />, color: '#78716C' }
+              const wDate         = plan.plan_start ? workoutDate(plan.plan_start, week.week_number, wo.day_of_week) : null
+              const existingRating= wDate ? feedback[wDate] : null
+              const isRating      = rating === wDate
+              const isPastOrToday = wDate ? wDate <= new Date().toISOString().slice(0, 10) : false
               return (
                 <div key={wo.day_of_week}>
                   <div className="flex items-start gap-3 px-4 py-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 workout-${wo.workout_type}`}>
-                      <Icon size={14} strokeWidth={2} />
+                      <meta.Icon size={14} strokeWidth={2} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{DAY_SHORT[wo.day_of_week] ?? wo.day_of_week}</span>
-                        <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{label}</span>
+                        <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{meta.label}</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{wo.distance_km} km</span>
                         <span className="text-xs" style={{ color: 'var(--border)' }}>·</span>
                         <span className="text-xs" style={{ color: 'var(--muted)' }}>{wo.pace_target} /km</span>
                       </div>
-                      {week.is_current && (
-                        <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--muted)' }}>{wo.description}</p>
-                      )}
+                      {week.is_current && <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--muted)' }}>{wo.description}</p>}
                     </div>
-
-                    {/* Check-off button (current week, past or today) */}
                     {week.is_current && isPastOrToday && wDate && (
                       existingRating ? (
                         <div className="flex items-center gap-1 flex-shrink-0 mt-1">
@@ -457,33 +333,22 @@ function PlanView() {
                           <span className="text-[11px] font-semibold" style={{ color: FEELING_COLORS[existingRating] }}>{existingRating}</span>
                         </div>
                       ) : (
-                        <button
-                          className="flex-shrink-0 mt-1 transition-opacity active:opacity-50"
-                          onClick={() => setRating(isRating ? null : wDate)}
-                          title="Rate this workout"
-                        >
+                        <button className="flex-shrink-0 mt-1 active:opacity-50" onClick={() => setRating(isRating ? null : wDate)}>
                           <Circle size={15} strokeWidth={1.5} style={{ color: 'var(--border)' }} />
                         </button>
                       )
                     )}
                   </div>
-
-                  {/* Feeling picker */}
                   {isRating && wDate && (
                     <div className="px-4 pb-3 flex items-center gap-2">
                       <span className="text-xs flex-shrink-0" style={{ color: 'var(--muted)' }}>How was it?</span>
                       <div className="flex gap-1.5 ml-1">
-                        {[1, 2, 3, 4, 5].map(n => (
-                          <button key={n}
-                            className="w-8 h-8 rounded-lg text-[13px] font-bold text-white transition-transform active:scale-90"
-                            style={{ background: FEELING_COLORS[n] }}
-                            onClick={() => saveFeedback(wDate, n)}>
-                            {n}
-                          </button>
+                        {[1,2,3,4,5].map(n => (
+                          <button key={n} className="w-8 h-8 rounded-lg text-[13px] font-bold text-white transition-transform active:scale-90"
+                            style={{ background: FEELING_COLORS[n] }} onClick={() => saveFeedback(wDate, n)}>{n}</button>
                         ))}
                       </div>
-                      <button className="text-xs ml-1 flex-shrink-0" style={{ color: 'var(--muted)' }}
-                        onClick={() => setRating(null)}>cancel</button>
+                      <button className="text-xs ml-1" style={{ color: 'var(--muted)' }} onClick={() => setRating(null)}>cancel</button>
                     </div>
                   )}
                 </div>
@@ -496,8 +361,151 @@ function PlanView() {
   )
 }
 
+// ── Calendar ──────────────────────────────────────────────────────────────────
+function CalendarView() {
+  const [events, setEvents]     = useState<CalEvent[]>([])
+  const [feedback, setFeedback] = useState<FeedbackMap>({})
+  const [month, setMonth]       = useState(() => new Date())
+  const [selected, setSelected] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/calendar').then(r => r.json()).then(setEvents).catch(() => {})
+    fetch('/api/feedback').then(r => r.json())
+      .then((items: { date: string; feeling: number }[]) => {
+        const m: FeedbackMap = {}; items.forEach(i => { m[i.date] = i.feeling }); setFeedback(m)
+      }).catch(() => {})
+  }, [])
+
+  const year       = month.getFullYear()
+  const mo         = month.getMonth()
+  const firstDay   = new Date(year, mo, 1).getDay()
+  const daysInMo   = new Date(year, mo + 1, 0).getDate()
+  const today      = new Date().toISOString().slice(0, 10)
+  const eventMap   = Object.fromEntries(events.map(e => [e.date, e]))
+  const selEvent   = selected ? eventMap[selected] : null
+
+  const cells: (number | null)[] = [
+    ...Array(firstDay).fill(null),
+    ...Array.from({ length: daysInMo }, (_, i) => i + 1),
+  ]
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0" style={{ background: 'var(--bg)' }}>
+      {/* Month nav */}
+      <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <button className="p-1.5 rounded-lg active:opacity-50" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>
+          <ChevronLeft size={18} strokeWidth={2} style={{ color: 'var(--text)' }} />
+        </button>
+        <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+          {month.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+        </span>
+        <button className="p-1.5 rounded-lg active:opacity-50" onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>
+          <ChevronRight size={18} strokeWidth={2} style={{ color: 'var(--text)' }} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Day labels */}
+        <div className="grid grid-cols-7 px-2 pt-3 pb-1">
+          {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+            <div key={d} className="text-center text-[11px] font-semibold" style={{ color: 'var(--muted)' }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <div className="grid grid-cols-7 px-2 gap-y-0.5 pb-2">
+          {cells.map((day, i) => {
+            if (!day) return <div key={i} />
+            const dateStr = isoDate(year, mo, day)
+            const event   = eventMap[dateStr]
+            const isToday = dateStr === today
+            const isSel   = dateStr === selected
+            const feel    = feedback[dateStr]
+            const dotColor = feel ? FEELING_COLORS[feel] : (event ? (WORKOUT_META[event.workout_type]?.color ?? '#78716C') : '')
+
+            return (
+              <button key={i}
+                className="flex flex-col items-center py-1 rounded-xl transition-colors active:opacity-60"
+                style={{ background: isSel ? 'rgba(240,90,40,0.10)' : 'transparent' }}
+                onClick={() => setSelected(isSel ? null : dateStr)}>
+                <span className="text-[13px] font-medium w-7 h-7 flex items-center justify-center rounded-full"
+                  style={{
+                    background: isToday ? 'var(--accent)' : 'transparent',
+                    color:      isToday ? '#fff' : 'var(--text)',
+                    fontWeight: isToday ? 700 : undefined,
+                  }}>
+                  {day}
+                </span>
+                {event ? (
+                  feel
+                    ? <CheckCircle size={9} strokeWidth={2.5} style={{ color: dotColor, marginTop: 2 }} />
+                    : <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: dotColor }} />
+                ) : (
+                  <span className="w-1.5 h-1.5 mt-0.5" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-4 py-3 border-t border-b"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+          {Object.entries(WORKOUT_META).filter(([k]) => k !== 'strength').map(([k, v]) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ background: v.color }} />
+              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>{v.label}</span>
+            </span>
+          ))}
+        </div>
+
+        {/* Selected workout detail */}
+        {selEvent && selected && (
+          <div className="mx-4 mt-4 mb-2 rounded-xl border overflow-hidden"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 workout-${selEvent.workout_type}`}>
+                {(() => { const { Icon } = WORKOUT_META[selEvent.workout_type] ?? { Icon: (p:{size:number;strokeWidth:number}) => <Wind {...p}/> }; return <Icon size={15} strokeWidth={2} /> })()}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+                  {WORKOUT_META[selEvent.workout_type]?.label ?? selEvent.workout_type}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                  {new Date(selected + 'T12:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                  {' · '}Week {selEvent.week_number}
+                </p>
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-lg font-bold" style={{ color: 'var(--text)' }}>{selEvent.distance_km} km</span>
+                <span className="text-sm px-2 py-0.5 rounded-md" style={{ background: 'var(--border)', color: 'var(--muted)' }}>
+                  {selEvent.pace_target} /km
+                </span>
+              </div>
+              {selEvent.description && (
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>{selEvent.description}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state for no event selected */}
+        {!selEvent && (
+          <p className="text-center text-xs py-6" style={{ color: 'var(--muted)' }}>
+            Tap a coloured dot to see workout details
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── App shell ─────────────────────────────────────────────────────────────────
-type Tab = 'messages' | 'plan' | 'chat'
+type Tab = 'messages' | 'plan' | 'calendar'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('messages')
@@ -507,7 +515,7 @@ export default function App() {
       if (typeof Notification !== 'undefined') {
         Notification.requestPermission().then(() => registerPush()).catch(() => {})
       }
-    } catch { /* push not supported on this browser */ }
+    } catch { /* push not supported */ }
   }, [])
 
   const days = daysToRace()
@@ -515,7 +523,6 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen max-w-[480px] mx-auto sm:my-8 sm:h-[calc(100vh-64px)] sm:rounded-2xl sm:overflow-hidden sm:shadow-xl">
 
-      {/* Header */}
       <header className="app-header flex items-center justify-between px-5 py-4 flex-shrink-0"
         style={{ background: 'var(--header-bg)' }}>
         <div className="flex items-center gap-2">
@@ -528,35 +535,29 @@ export default function App() {
         </div>
       </header>
 
-      {/* Tabs */}
       <nav className="tabs flex border-b flex-shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         {([
-          ['messages', 'Messages', <Layers size={15} strokeWidth={2} />],
-          ['plan',     'Plan',     <CalendarDays size={15} strokeWidth={2} />],
-          ['chat',     'Chat',     <MessageCircle size={15} strokeWidth={2} />],
+          ['messages',  'Messages', <Layers      size={15} strokeWidth={2} />],
+          ['plan',      'Plan',     <MessageCircle size={15} strokeWidth={2} />],
+          ['calendar',  'Calendar', <CalendarDays size={15} strokeWidth={2} />],
         ] as const).map(([id, label, icon]) => (
-          <button
-            key={id}
-            className={`flex flex-1 items-center justify-center gap-1.5 py-[13px] text-[13px] font-medium border-b-2 -mb-px transition-colors`}
+          <button key={id}
+            className="flex flex-1 items-center justify-center gap-1.5 py-[13px] text-[13px] font-medium border-b-2 -mb-px transition-colors"
             style={{
-              color:        tab === id ? 'var(--accent)' : 'var(--muted)',
-              borderColor:  tab === id ? 'var(--accent)' : 'transparent',
-              background:   'none',
-              fontFamily:   'inherit',
-              cursor:       'pointer',
+              color:       tab === id ? 'var(--accent)' : 'var(--muted)',
+              borderColor: tab === id ? 'var(--accent)' : 'transparent',
+              background:  'none', fontFamily: 'inherit', cursor: 'pointer',
             }}
-            onClick={() => setTab(id)}
-          >
+            onClick={() => setTab(id)}>
             {icon}{label}
           </button>
         ))}
       </nav>
 
-      {/* Content */}
       <main className="main flex-1 overflow-hidden flex flex-col min-h-0">
         {tab === 'messages' && <MessageFeed />}
         {tab === 'plan'     && <PlanView />}
-        {tab === 'chat'     && <ChatView />}
+        {tab === 'calendar' && <CalendarView />}
       </main>
     </div>
   )
