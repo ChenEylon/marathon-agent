@@ -20,13 +20,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY agent/      ./agent/
 COPY scripts/    ./scripts/
 COPY config.yaml .
-# Google OAuth client credentials (not the token — that lives on the volume)
 COPY google_credentials.json .
 
 # Frontend built artifact
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
-# Volume for persistent data (data.db, vapid keys, garth tokens, google token)
-RUN mkdir -p /app/data
+# Bake the training plan into the image so it survives on ephemeral deployments
+RUN mkdir -p /app/data && python scripts/build_training_plan.py
 
-CMD ["python", "agent/main.py"]
+# Startup: restore credentials from env vars, then launch agent
+CMD ["sh", "-c", "python scripts/init_data.py && python agent/main.py"]
