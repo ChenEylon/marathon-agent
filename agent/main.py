@@ -281,6 +281,15 @@ async def post_feedback(request: Request):
 
 # ── Health ─────────────────────────────────────────────────────────────────────
 
+@app.post("/api/test-push")
+def test_push():
+    from agent import push_client, config
+    cfg  = config.load()
+    name = cfg["user"]["name"]
+    push_client.send_message(cfg["user"]["phone"], f"Hey {name}! Notifications are working. 🏃✅")
+    return {"ok": True}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}

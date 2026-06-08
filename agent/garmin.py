@@ -19,11 +19,37 @@ def get_client() -> garminconnect.Garmin:
     return api
 
 
+def _safe_client(timeout: int = 12) -> "garminconnect.Garmin | None":
+    """Return authenticated client, or None if login fails/times out."""
+    import threading
+    result: list = [None]
+    error:  list = [None]
+
+    def _login():
+        try:
+            result[0] = get_client()
+        except Exception as e:
+            error[0] = e
+
+    t = threading.Thread(target=_login, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        print("⚠️  Garmin login timed out — skipping recovery data")
+        return None
+    if error[0]:
+        print(f"⚠️  Garmin login failed: {error[0]}")
+        return None
+    return result[0]
+
+
 def get_hrv(date: datetime.date | None = None) -> dict | None:
     if date is None:
         date = datetime.date.today()
     try:
-        api = get_client()
+        api = _safe_client()
+        if not api:
+            return None
         data = api.get_hrv_data(date.isoformat())
         return data.get("hrvSummary") if data else None
     except Exception as e:
@@ -35,7 +61,9 @@ def get_body_battery(date: datetime.date | None = None) -> int | None:
     if date is None:
         date = datetime.date.today()
     try:
-        api = get_client()
+        api = _safe_client()
+        if not api:
+            return None
         data = api.get_body_battery(date.isoformat(), date.isoformat())
         if not data:
             return None

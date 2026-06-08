@@ -1,8 +1,8 @@
 user:
-  name: "Chen"
-  phone: "972526552958"
+  name: "Your Name"
+  phone: "972501234567"          # your number with country code, no +
   message_time: "07:30"
-  timezone: "Asia/Jerusalem"
+  timezone: "Asia/Jerusalem"     # e.g. America/New_York, Europe/London
 
 training:
   plan_start_date: "2026-05-04"    # Monday of week 1

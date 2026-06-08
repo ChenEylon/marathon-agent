@@ -3,6 +3,7 @@ import {
   Zap, Layers, ArrowUp, Bot, Inbox,
   CalendarDays, Wind, Navigation, BarChart2, Trophy, Dumbbell,
   CheckCircle, Circle, ChevronLeft, ChevronRight, MessageCircle,
+  Bell, BellOff,
 } from 'lucide-react'
 import './App.css'
 
@@ -22,14 +23,41 @@ function urlBase64ToUint8Array(b64: string) {
   const base64  = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/')
   return Uint8Array.from([...atob(base64)].map(c => c.charCodeAt(0)))
 }
-async function registerPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
-  const reg = await navigator.serviceWorker.register('/sw.js')
-  const { key } = await fetch('/api/vapid-public-key').then(r => r.json())
-  if (!key) return
-  const sub = (await reg.pushManager.getSubscription()) ??
-    await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) })
-  await fetch('/api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub }) })
+
+type NotifStatus = 'unsupported' | 'denied' | 'subscribed' | 'unsubscribed'
+
+async function registerPush(): Promise<NotifStatus> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'
+  const perm = Notification.permission
+  if (perm === 'denied') return 'denied'
+  if (perm === 'default') {
+    const result = await Notification.requestPermission()
+    if (result !== 'granted') return 'denied'
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js')
+    const { key } = await fetch('/api/vapid-public-key').then(r => r.json())
+    if (!key) return 'unsupported'
+    const sub = (await reg.pushManager.getSubscription()) ??
+      await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) })
+    await fetch('/api/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub }) })
+    return 'subscribed'
+  } catch {
+    return 'unsubscribed'
+  }
+}
+
+async function checkNotifStatus(): Promise<NotifStatus> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported'
+  if (Notification.permission === 'denied') return 'denied'
+  try {
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (!reg) return 'unsubscribed'
+    const sub = await reg.pushManager.getSubscription()
+    return sub ? 'subscribed' : 'unsubscribed'
+  } catch {
+    return 'unsubscribed'
+  }
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
@@ -508,17 +536,39 @@ function CalendarView() {
 type Tab = 'messages' | 'plan' | 'calendar'
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('messages')
+  const [tab, setTab]           = useState<Tab>('messages')
+  const [notifStatus, setNotifStatus] = useState<NotifStatus>('unsubscribed')
+  const [testing, setTesting]   = useState(false)
 
   useEffect(() => {
-    try {
-      if (typeof Notification !== 'undefined') {
-        Notification.requestPermission().then(() => registerPush()).catch(() => {})
-      }
-    } catch { /* push not supported */ }
+    checkNotifStatus().then(setNotifStatus)
   }, [])
 
+  const handleBellClick = async () => {
+    if (notifStatus === 'denied') {
+      alert('Notifications are blocked in your browser settings. Open site settings and allow notifications, then refresh.')
+      return
+    }
+    if (notifStatus === 'subscribed') {
+      setTesting(true)
+      try {
+        await fetch('/api/test-push', { method: 'POST' })
+      } finally {
+        setTesting(false)
+      }
+      return
+    }
+    const status = await registerPush()
+    setNotifStatus(status)
+  }
+
   const days = daysToRace()
+
+  const bellColor =
+    notifStatus === 'subscribed'   ? '#22C55E' :
+    notifStatus === 'denied'       ? '#EF4444' :
+    notifStatus === 'unsupported'  ? '#6B7280' :
+    '#F97316'
 
   return (
     <div className="flex flex-col h-screen max-w-[480px] mx-auto sm:my-8 sm:h-[calc(100vh-64px)] sm:rounded-2xl sm:overflow-hidden sm:shadow-xl">
@@ -529,9 +579,27 @@ export default function App() {
           <Zap size={20} strokeWidth={2.5} style={{ color: 'var(--accent)' }} />
           <span className="text-[15px] font-bold tracking-[0.12em] text-white">MARATHON</span>
         </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[11px] font-medium tracking-[0.06em] uppercase" style={{ color: '#6B6460' }}>Coach</span>
-          <span className="text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>{days}d to race</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleBellClick}
+            disabled={testing || notifStatus === 'unsupported'}
+            title={
+              notifStatus === 'subscribed'  ? 'Notifications on — tap to test' :
+              notifStatus === 'denied'      ? 'Notifications blocked' :
+              notifStatus === 'unsupported' ? 'Push not supported in this browser' :
+              'Enable notifications'
+            }
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-opacity active:opacity-60 disabled:opacity-30"
+            style={{ background: 'rgba(255,255,255,0.08)' }}>
+            {notifStatus === 'denied'
+              ? <BellOff size={15} strokeWidth={2} style={{ color: bellColor }} />
+              : <Bell    size={15} strokeWidth={2} style={{ color: bellColor }} />
+            }
+          </button>
+          <div className="flex flex-col items-end">
+            <span className="text-[11px] font-medium tracking-[0.06em] uppercase" style={{ color: '#6B6460' }}>Coach</span>
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>{days}d to race</span>
+          </div>
         </div>
       </header>
 
